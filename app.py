@@ -14,6 +14,131 @@ from nltk.stem.snowball import FrenchStemmer
 from nltk.corpus import stopwords
 import folium
 from streamlit_folium import st_folium
+import streamlit.components.v1 as components
+
+def inject_scroll_animations():
+    """
+    Injects a premium 3D scroll experience into the Streamlit parent page.
+    Features:
+      - Shimmer gradient progress bar
+      - 3D perspective reveal on scroll (bi-directional)
+      - Cascading stagger for sibling elements
+      - MutationObserver for zero-cost Streamlit re-render detection
+    """
+    css = """
+        /* ── Progress Bar ─────────────────────────────────────────── */
+        #c-bar {
+            position: fixed; top: 0; left: 0;
+            height: 4px; width: 0%;
+            background: linear-gradient(90deg, #00f2fe, #4facfe, #9b59b6, #f39c12);
+            z-index: 9999998; overflow: hidden;
+            box-shadow: 0 0 16px rgba(79, 172, 254, .65);
+        }
+        #c-bar::after {
+            content: ''; position: absolute; top: 0; left: -70%;
+            width: 70%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+            animation: c-shine 2.2s infinite linear;
+        }
+        @keyframes c-shine { to { left: 170%; } }
+
+        /* ── 3D Reveal Base State ─────────────────────────────────── */
+        .reveal {
+            opacity: 0 !important;
+            transform: translateY(60px) rotateX(25deg) scale(.95) !important;
+            transform-origin: 50% 0% !important;
+            transform-style: preserve-3d !important;
+            filter: blur(6px) !important;
+            backface-visibility: hidden;
+            will-change: transform, opacity, filter;
+            transition:
+                opacity   .75s cubic-bezier(.22, 1, .36, 1),
+                transform .75s cubic-bezier(.22, 1, .36, 1),
+                filter    .60s cubic-bezier(.22, 1, .36, 1) !important;
+        }
+
+        /* ── 3D Reveal Active State ───────────────────────────────── */
+        .reveal.in {
+            opacity: 1 !important;
+            transform: translateY(0) rotateX(0deg) scale(1) !important;
+            filter: blur(0) !important;
+        }
+
+        /* ── Cascade Stagger for Siblings ────────────────────────── */
+        .reveal:nth-child(1) { transition-delay: .00s !important; }
+        .reveal:nth-child(2) { transition-delay: .10s !important; }
+        .reveal:nth-child(3) { transition-delay: .20s !important; }
+        .reveal:nth-child(n+4) { transition-delay: .28s !important; }
+    """
+
+    js = """
+        (function () {
+            const pDoc = window.parent.document;
+
+            // ── Guard: run exactly once ──────────────────────────────
+            if (pDoc.getElementById('anim-v8')) return;
+
+            // ── 1. Inject Styles ─────────────────────────────────────
+            const style    = pDoc.createElement('style');
+            style.id       = 'anim-v8';
+            style.textContent = CSS_PLACEHOLDER;
+            pDoc.head.appendChild(style);
+
+            // ── 2. Inject Progress Bar ───────────────────────────────
+            const bar = Object.assign(pDoc.createElement('div'), { id: 'c-bar' });
+            pDoc.body.appendChild(bar);
+
+            // ── 3. Scroll → Progress Bar (RAF-throttled) ─────────────
+            const SC = pDoc.querySelector('.stAppViewContainer') || window.parent;
+            let rafPending = false;
+
+            const updateBar = () => {
+                rafPending = false;
+                const top    = SC.scrollTop  ?? window.parent.pageYOffset  ?? 0;
+                const height = (SC.scrollHeight  ?? pDoc.documentElement.scrollHeight)
+                             - (SC.clientHeight   ?? window.parent.innerHeight);
+                bar.style.width = (height > 0 ? (top / height) * 100 : 0) + '%';
+            };
+
+            SC.addEventListener('scroll', () => {
+                if (!rafPending) { rafPending = true; requestAnimationFrame(updateBar); }
+            }, { passive: true });
+            updateBar(); // set initial state
+
+            // ── 4. 3D Reveal — bi-directional IntersectionObserver ───
+            const SELECTORS = '.card, .stat-box, [data-testid="stMetric"], .stPlotlyChart, h2, h3';
+
+            const observer = new window.parent.IntersectionObserver(entries => {
+                for (const entry of entries)
+                    entry.target.classList.toggle('in', entry.isIntersecting);
+            }, {
+                threshold:   0.07,
+                rootMargin: '-16px 0px -16px 0px'
+            });
+
+            const register = () => {
+                for (const el of pDoc.querySelectorAll(SELECTORS)) {
+                    if (!el.dataset.anim) {
+                        el.dataset.anim = '1';
+                        el.classList.add('reveal');
+                        observer.observe(el);
+                    }
+                }
+            };
+
+            // ── 5. MutationObserver — detects Streamlit re-renders ───
+            new window.parent.MutationObserver(register)
+                .observe(pDoc.body, { childList: true, subtree: true });
+
+            register(); // initial registration pass
+        })();
+    """
+
+    # Embed CSS string inside JS safely
+    js_with_css = js.replace('CSS_PLACEHOLDER', repr(css))
+
+    components.html(f"<script>{js_with_css}</script>", height=0, width=0)
+
 
 # ==========================================
 # 1. INITIALISATION & CONFIGURATION
@@ -38,6 +163,8 @@ st.set_page_config(
     page_icon=f"data:image/svg+xml;base64,{logo_b64}" if logo_b64 else "logo",
     layout="wide"
 )
+
+inject_scroll_animations()
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
@@ -468,6 +595,7 @@ def inject_styles(dark_mode):
         header_color="#1e293b" if not dark_mode else "#f8fafc"
     ), unsafe_allow_html=True)
 
+
 # ==========================================
 # 5. COMPOSANTS UI
 # ==========================================
@@ -504,13 +632,14 @@ def display_hero(dark_mode):
             }}
             .hero-banner::after {{
                 content: 'تونس';
-                position: absolute; right: 50px; top: 50%; transform: translateY(-50%);
+                position: absolute; right: 300px; top: 50%; transform: translateY(-50%);
                 font-family: 'Amiri', serif; font-size: 14rem;
                 color: rgba(93, 173, 226, 0.08); direction: rtl;
                 text-shadow: 0 0 10px rgba(93,173,226,0.2), 0 0 25px rgba(93,173,226,0.1);
                 pointer-events: none;
                 z-index: 1;
             }}
+
             .hero-content {{
                 flex: 1;
                 z-index: 10;
@@ -531,7 +660,91 @@ def display_hero(dark_mode):
                 color: rgba(255,255,255,0.52); font-size: 0.95rem; font-weight: 300; line-height: 1.75;
                 max-width: 540px; margin: 0; font-family: 'DM Sans', sans-serif;
             }}
-            
+
+            /* ── 3D MAP CONTAINER ─────────────────────────── */
+            .hero-map {{
+                position: relative;
+                width: 240px;
+                height: 280px;
+                flex-shrink: 0;
+                z-index: 10;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }}
+            .map-scene {{
+                width: 180px;
+                height: 260px;
+                position: relative;
+                transform-style: preserve-3d;
+                animation: mapFloat 4s ease-in-out infinite, mapRotate 12s linear infinite;
+                filter: drop-shadow(0 0 30px rgba(93,173,226,0.35));
+            }}
+            @keyframes mapFloat {{
+                0%, 100% {{ transform: translateY(0px) rotateY(var(--ry, 0deg)); }}
+                50%        {{ transform: translateY(-12px) rotateY(var(--ry, 0deg)); }}
+            }}
+            @keyframes mapRotate {{
+                from {{ --ry: -15deg; }}
+                to   {{ --ry: 15deg; }}
+            }}
+            .map-glow {{
+                position: absolute;
+                bottom: -20px; left: 50%;
+                transform: translateX(-50%);
+                width: 120px; height: 20px;
+                background: rgba(93,173,226,0.2);
+                border-radius: 50%;
+                filter: blur(10px);
+                animation: glowPulse 4s ease-in-out infinite;
+            }}
+            @keyframes glowPulse {{
+                0%,100% {{ opacity: 0.4; transform: translateX(-50%) scaleX(1); }}
+                50%      {{ opacity: 0.8; transform: translateX(-50%) scaleX(1.2); }}
+            }}
+            .tunisia-svg {{
+                width: 100%;
+                height: 100%;
+                animation: svgRotate 12s ease-in-out infinite;
+                transform-origin: 50% 50%;
+            }}
+            @keyframes svgRotate {{
+                0%   {{ transform: rotateY(-15deg) rotateX(5deg); }}
+                50%  {{ transform: rotateY(15deg)  rotateX(-5deg); }}
+                100% {{ transform: rotateY(-15deg) rotateX(5deg); }}
+            }}
+
+            /* City pins */
+            .pin {{
+                position: absolute;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                animation: pinPop 0.6s ease-out both;
+            }}
+            .pin-dot {{
+                width: 8px; height: 8px;
+                border-radius: 50%;
+                background: #00f2fe;
+                box-shadow: 0 0 8px #00f2fe, 0 0 16px rgba(0,242,254,0.5);
+                animation: pinPulse 2s ease-in-out infinite;
+            }}
+            .pin-label {{
+                font-size: 0.55rem;
+                color: rgba(255,255,255,0.75);
+                margin-top: 3px;
+                white-space: nowrap;
+                font-family: 'Inter', sans-serif;
+            }}
+            @keyframes pinPop {{
+                from {{ transform: scale(0); opacity: 0; }}
+                to   {{ transform: scale(1); opacity: 1; }}
+            }}
+            @keyframes pinPulse {{
+                0%,100% {{ box-shadow: 0 0 6px #00f2fe; transform: scale(1); }}
+                50%      {{ box-shadow: 0 0 14px #00f2fe, 0 0 28px rgba(0,242,254,0.4); transform: scale(1.3); }}
+            }}
+
             @keyframes fadeInUp {{ from {{ opacity: 0; transform: translateY(30px); }} to {{ opacity: 1; transform: translateY(0); }} }}
         </style>
     </head>
@@ -546,6 +759,54 @@ def display_hero(dark_mode):
                 </div>
                 <h1 class="hero-title">Découvrez la Tunisie,<br><em>à votre façon.</em></h1>
                 <p class="hero-sub">Système intelligent combinant 4 algorithmes de filtrage — basé sur le contenu, collaboratif et temporel — pour proposer des expériences personnalisées.</p>
+            </div>
+
+            <!-- 3D Tunisia Map -->
+            <div class="hero-map">
+                <div class="map-scene">
+                    <svg class="tunisia-svg" viewBox="0 0 200 320" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="tnGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%"   stop-color="#4facfe" stop-opacity="0.9"/>
+                                <stop offset="50%"  stop-color="#00f2fe" stop-opacity="0.7"/>
+                                <stop offset="100%" stop-color="#9b59b6" stop-opacity="0.6"/>
+                            </linearGradient>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                            </filter>
+                        </defs>
+                        <!-- Real geographic outline of Tunisia -->
+                        <path d="M 99.0,310.0 L 80.8,233.5 L 54.5,216.3 L 54.2,206.0 L 19.3,180.6 L 15.6,148.6 L 41.8,124.8 L 51.9,89.7 L 45.1,49.1 L 53.8,27.2 L 100.1,10.0 L 130.0,15.1 L 128.7,36.7 L 164.8,21.0 L 167.9,29.2 L 146.6,50.0 L 146.3,69.7 L 161.0,80.3 L 155.4,117.2 L 127.4,138.6 L 135.5,161.8 L 157.5,162.6 L 168.2,182.8 L 184.4,189.5 L 182.0,222.2 L 161.3,234.4 L 148.1,248.1 L 118.9,264.5 L 123.4,282.1 L 119.7,300.1 L 99.0,310.0 Z" fill="url(#tnGrad)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" filter="url(#glow)"/>
+                        
+                        <!-- Interior grid lines for 3D depth feel -->
+                        <line x1="70" y1="60"  x2="140" y2="60"  stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                        <line x1="60" y1="100" x2="150" y2="100" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                        <line x1="55" y1="140" x2="148" y2="140" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                        <line x1="60" y1="180" x2="140" y2="180" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                        <line x1="65" y1="220" x2="130" y2="220" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                        
+                        <!-- Accurate City dots and labels -->
+                        <circle cx="128.7" cy="33.2" r="3.5" fill="#00f2fe" opacity="0.9" filter="url(#glow)"/> <!-- Tunis -->
+                        <text x="133.7" y="32.2" font-size="7" fill="rgba(255,255,255,0.9)" font-family="Inter">Tunis</text>
+                        
+                        <circle cx="147.3" cy="50.5" r="2.5" fill="#f39c12" opacity="0.9" filter="url(#glow)"/> <!-- Hammamet -->
+                        <text x="151.3" y="52.5" font-size="6" fill="rgba(255,255,255,0.7)" font-family="Inter">Hammamet</text>
+                        
+                        <circle cx="148.1" cy="74.9" r="2.5" fill="#00f2fe" opacity="0.9" filter="url(#glow)"/> <!-- Sousse -->
+                        <text x="152.1" y="76.9" font-size="6" fill="rgba(255,255,255,0.7)" font-family="Inter">Sousse</text>
+                        
+                        <circle cx="157.2" cy="161.2" r="2.5" fill="#f39c12" opacity="0.9" filter="url(#glow)"/> <!-- Djerba -->
+                        <text x="161.2" y="163.2" font-size="6" fill="rgba(255,255,255,0.7)" font-family="Inter">Djerba</text>
+                        
+                        <circle cx="41.5" cy="156.3" r="2.5" fill="#9b59b6" opacity="0.9" filter="url(#glow)"/> <!-- Tozeur -->
+                        <text x="25.5" y="153.3" font-size="6" fill="rgba(255,255,255,0.7)" font-family="Inter">Tozeur</text>
+                        
+                        <circle cx="79.3" cy="175.7" r="2.5" fill="#9b59b6" opacity="0.9" filter="url(#glow)"/> <!-- Douz -->
+                        <text x="83.3" y="177.7" font-size="6" fill="rgba(255,255,255,0.7)" font-family="Inter">Douz</text>
+                    </svg>
+                </div>
+                <div class="map-glow"></div>
             </div>
         </div>
     </body>
@@ -714,6 +975,7 @@ with st.sidebar:
         st.write(f"Note moyenne : **{user_history['note'].mean():.2f} / 5**")
 
 # --- PAGE PRINCIPALE ---
+
 # Bouton flottant du chatbot
 st.markdown("""
 <div class="chat-fab-label">💬 Demandez à Tarek</div>
