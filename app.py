@@ -45,10 +45,15 @@ DATABASE_URL = os.environ.get(
 )
 
 # --- GEMINI CHATBOT CONFIG ---
-# La clé est cachée pour GitHub. Elle sera lue depuis st.secrets ou Render.
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-if not GEMINI_API_KEY and "GEMINI_API_KEY" in st.secrets:
-    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+
+# On essaie de lire st.secrets sans faire planter l'app
+if not GEMINI_API_KEY:
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    except:
+        pass
 
 DEFAULT_GEMINI_KEY = GEMINI_API_KEY
 
