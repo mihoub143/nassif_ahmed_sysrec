@@ -153,7 +153,7 @@ except Exception:
 
 # Chargement du Logo
 try:
-    with open("logo-nav.svg", "rb") as f:
+    with open("download.svg", "rb") as f:
         logo_b64 = base64.b64encode(f.read()).decode()
 except FileNotFoundError:
     logo_b64 = ""
@@ -184,7 +184,7 @@ if not GEMINI_API_KEY:
 
 DEFAULT_GEMINI_KEY = GEMINI_API_KEY
 
-CHATBOT_SYSTEM_PROMPT = """Tu es Emna, un assistant de voyage passionné et expert en Tunisie.
+CHATBOT_SYSTEM_PROMPT = """Tu es Youssef, un assistant de voyage passionné et expert en Tunisie.
 Tu fais partie d'un système intelligent de recommandation qui utilise 4 algorithmes:
 - Content-Based Filtering: basé sur les descriptions des produits
 - Filtrage Collaboratif (KNN): basé sur les utilisateurs similaires
@@ -919,7 +919,7 @@ with st.sidebar:
     profile_df = analyze_user_profile(selected_user)
     if not profile_df.empty:
         st.markdown('<div class="profile-container">', unsafe_allow_html=True)
-        st.markdown("### Profil d'Intérêt")
+        st.markdown("## Profil d'Intérêt")
         fig_radar = px.line_polar(profile_df, r='note', theta='categorie', line_close=True)
         fig_radar.update_traces(fill='toself', line_color='#38bdf8', fillcolor='rgba(56, 189, 248, 0.3)')
         fig_radar.update_layout(
@@ -947,8 +947,8 @@ with st.sidebar:
                         border-radius:50%;display:flex;align-items:center;justify-content:center;
                         font-size:1.3rem;flex-shrink:0;">🤖</div>
             <div>
-                <div style="color:#5dade2;font-weight:700;font-size:0.9rem;">Tarek — Assistant IA</div>
-                <div style="color:rgba(255,255,255,0.5);font-size:0.72rem;">Expert Voyages Tunisie • Gemini</div>
+                <div style="color:#5dade2;font-weight:700;font-size:0.9rem;">Youssef — Assistant IA</div>
+                <div style="color:rgba(255,255,255,0.5);font-size:0.72rem;">Expert Voyages Tunisie </div>
             </div>
         </div>
     </div>
@@ -967,7 +967,7 @@ with st.sidebar:
     # Input du chat
     if prompt := st.chat_input("Demandez-moi sur la Tunisie...", key="gemini_chat"):
         st.session_state.chat_messages.append({"role": "user", "content": prompt})
-        with st.spinner("Emna réfléchit..."):
+        with st.spinner("Youssef réfléchit..."):
             reply = get_gemini_response(prompt, st.session_state.current_api_key)
         st.session_state.chat_messages.append({"role": "assistant", "content": reply})
         st.rerun()
