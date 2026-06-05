@@ -6,7 +6,7 @@ def setup_database():
     print("Connexion PostgreSQL Render...")
 
     # 🔥 URL Render (remplace si besoin)
-    DATABASE_URL = "postgresql://sr_j833_user:WXMnVS2PVorml3YjLDz9LhWRZ6VHgemr@dpg-d7pl468js32c73dva8k0-a.oregon-postgres.render.com:5432/sr_j833"
+    DATABASE_URL = "postgresql://sr2_user:kWG2pVT357HMqGEBULaB5roT6nD4VKQp@dpg-d8he6os2m8qs73b27ehg-a.oregon-postgres.render.com/sr2"
 
     try:
         conn = psycopg2.connect(DATABASE_URL)
